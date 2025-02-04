@@ -1,4 +1,4 @@
-package omifier
+package main
 
 import (
 	"fmt"
