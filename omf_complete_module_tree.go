@@ -1,4 +1,4 @@
-package main
+package omifier
 
 import (
 	"fmt"
@@ -7,113 +7,113 @@ import (
 )
 
 type OMFCompleteModuleTree struct {
-  Hash string
-  Contact string
-  Description string
-  Language string
-  Name string
-  Organization string
-  Path string
-  Reference string
-  Tree map[string]*OMFTreeNode
+	Hash         string
+	Contact      string
+	Description  string
+	Language     string
+	Name         string
+	Organization string
+	Path         string
+	Reference    string
+	Tree         map[string]*OMFTreeNode
 }
 
 func append_module(module_name string) error {
 	_, err := gosmi.LoadModule(module_name)
 
-  return err
+	return err
 }
 
 func get_leaf_by_oid(oid gosmi_types.Oid, node_map map[string]*OMFTreeNode) *OMFTreeNode {
-  if len(oid) == 1 {
-    _, leaf_exists := node_map[fmt.Sprintf("%v", oid)];
+	if len(oid) == 1 {
+		_, leaf_exists := node_map[fmt.Sprintf("%v", oid)]
 
-    if !leaf_exists {
-      node_map[fmt.Sprintf("%v", oid)] = &OMFTreeNode{
-        Children: make(map[string]*OMFTreeNode),
-      }
-    }
+		if !leaf_exists {
+			node_map[fmt.Sprintf("%v", oid)] = &OMFTreeNode{
+				Children: make(map[string]*OMFTreeNode),
+			}
+		}
 
-    return node_map[fmt.Sprintf("%v", oid)]
-  }
+		return node_map[fmt.Sprintf("%v", oid)]
+	}
 
-  oid_root := fmt.Sprintf("%v", oid[0]);
+	oid_root := fmt.Sprintf("%v", oid[0])
 
-  _, oid_root_exists := node_map[oid_root];
+	_, oid_root_exists := node_map[oid_root]
 
-  if !oid_root_exists {
-    node_map[oid_root] = &OMFTreeNode{
-      Children: make(map[string]*OMFTreeNode),
-    }
-  }
+	if !oid_root_exists {
+		node_map[oid_root] = &OMFTreeNode{
+			Children: make(map[string]*OMFTreeNode),
+		}
+	}
 
-  oid_rest := oid[1:];
+	oid_rest := oid[1:]
 
-  return get_leaf_by_oid(oid_rest, node_map[oid_root].Children)
+	return get_leaf_by_oid(oid_rest, node_map[oid_root].Children)
 }
 
 func create_tree_from_node_list(nd_list []gosmi.SmiNode) map[string]*OMFTreeNode {
-  tree_map := make(map[string]*OMFTreeNode);
+	tree_map := make(map[string]*OMFTreeNode)
 
-  for _, node := range nd_list {
+	for _, node := range nd_list {
 
-    clean_node := get_leaf_by_oid(node.Oid, tree_map)    
+		clean_node := get_leaf_by_oid(node.Oid, tree_map)
 
-    clean_node.Node = omfy_node(&node)
+		clean_node.Node = omfy_node(&node)
 
-    clean_node.NodeOid = node.Oid.String()
+		clean_node.NodeOid = node.Oid.String()
 
-  }
+	}
 
-  return tree_map;
+	return tree_map
 }
 
-func create_complete_tree_from_module (mod *gosmi.SmiModule) (OMFCompleteModuleTree, error) {
-  provided_module_tree, tree_err := create_omf_tree(mod)
-  
-  if tree_err != nil {
-    return OMFCompleteModuleTree{}, tree_err
-  }
+func create_complete_tree_from_module(mod *gosmi.SmiModule) (OMFCompleteModuleTree, error) {
+	provided_module_tree, tree_err := create_omf_tree(mod)
 
-  omf_complete_module_tree := OMFCompleteModuleTree {
-    Hash: provided_module_tree.ModuleHash,
-    Contact: provided_module_tree.ContactInfo,
-    Description: provided_module_tree.Description,
-    Language: provided_module_tree.Language,
-    Name: provided_module_tree.Name,
-    Organization: provided_module_tree.Organization,
-    Path: provided_module_tree.Path,
-    Reference: provided_module_tree.Reference,
-  }
+	if tree_err != nil {
+		return OMFCompleteModuleTree{}, tree_err
+	}
 
-  imported_module_trees := make(map[string]*OMFCompleteModuleTree)
+	omf_complete_module_tree := OMFCompleteModuleTree{
+		Hash:         provided_module_tree.ModuleHash,
+		Contact:      provided_module_tree.ContactInfo,
+		Description:  provided_module_tree.Description,
+		Language:     provided_module_tree.Language,
+		Name:         provided_module_tree.Name,
+		Organization: provided_module_tree.Organization,
+		Path:         provided_module_tree.Path,
+		Reference:    provided_module_tree.Reference,
+	}
 
-  for _, imported_module := range *provided_module_tree.ModuleImports {
-    
-    _, visited := imported_module_trees[imported_module.ModName];
+	imported_module_trees := make(map[string]*OMFCompleteModuleTree)
 
-    if visited {
-      continue
-    }
+	for _, imported_module := range *provided_module_tree.ModuleImports {
 
-    imported_module_err := append_module(imported_module.ModName)
+		_, visited := imported_module_trees[imported_module.ModName]
 
-    if imported_module_err != nil {
-     return  omf_complete_module_tree, nil
-    }
-  }
+		if visited {
+			continue
+		}
 
-  complete_node_collectoin := make([]gosmi.SmiNode, 0);
+		imported_module_err := append_module(imported_module.ModName)
 
-  for _, module := range gosmi.GetLoadedModules() {
-    complete_node_collectoin = append(complete_node_collectoin, module.GetNodes()...)
-  }
+		if imported_module_err != nil {
+			return omf_complete_module_tree, nil
+		}
+	}
 
-  complete_tree := create_tree_from_node_list(complete_node_collectoin)
+	complete_node_collectoin := make([]gosmi.SmiNode, 0)
 
-  omf_complete_module_tree.Tree = complete_tree
+	for _, module := range gosmi.GetLoadedModules() {
+		complete_node_collectoin = append(complete_node_collectoin, module.GetNodes()...)
+	}
 
-  return omf_complete_module_tree, nil
+	complete_tree := create_tree_from_node_list(complete_node_collectoin)
+
+	omf_complete_module_tree.Tree = complete_tree
+
+	return omf_complete_module_tree, nil
 }
 
 func CreateCompleteTreeFromModule(path string, module_name string) (OMFCompleteModuleTree, error) {
@@ -121,9 +121,9 @@ func CreateCompleteTreeFromModule(path string, module_name string) (OMFCompleteM
 
 	m, err := gosmi.GetModule(module_name)
 
-  if err != nil {
-    return OMFCompleteModuleTree{}, err
-  }
+	if err != nil {
+		return OMFCompleteModuleTree{}, err
+	}
 
-  return create_complete_tree_from_module(&m)
-} 
+	return create_complete_tree_from_module(&m)
+}

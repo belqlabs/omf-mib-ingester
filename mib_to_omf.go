@@ -1,4 +1,4 @@
-package main
+package omifier
 
 import (
 	"crypto/md5"
