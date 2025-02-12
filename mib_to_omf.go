@@ -116,6 +116,24 @@ type OMFTree struct {
 	RootNode      *OMFTreeNode
 }
 
+type OMFRepositoryNode struct {
+	NodeName   string
+	NodeStatus string
+	NodeOid    string
+}
+
+type OMFRepositoryType struct {
+	TypeName   string
+	TypeStatus string
+}
+
+type OMFRepositoryModule struct {
+	ModuleName string
+	ModuleHash string
+	Nodes      []OMFRepositoryNode
+	Types      []OMFRepositoryType
+}
+
 type OMFTypeConstraint interface {
 	OMFModule | OMFTextualConvention | OMFRevision | OMFImport | OMFScalar | OMFNotification | OMFIndex | OMFTable | OMFNode | OMFType | OMFRange | OMFEnum
 }
@@ -708,6 +726,51 @@ func GetOmfCommomStruct(path string, module_name string, parseBack bool) (OMFMod
 
 	exit_gosmi()
 	return omf_module, nil
+}
+
+func GetOmfRepositoryModule(path string, module_name string) (OMFRepositoryModule, error) {
+	init_gosmi(path, module_name)
+
+	m, err := gosmi.GetModule(module_name)
+
+	mod_rev := omfy_revisions(m.GetRevisions())
+
+	omf_repo_module := OMFRepositoryModule{
+		ModuleName: m.Name,
+		ModuleHash: generate_module_hash(m.Description, m.Name, &mod_rev),
+	}
+
+	if err != nil {
+		fmt.Printf("ModuleTrees Error: %s\n", err)
+		return omf_repo_module, err
+	}
+
+	module_nodes := []OMFRepositoryNode{}
+
+	for _, node := range m.GetNodes() {
+		new_repo_mod_node := OMFRepositoryNode{
+			NodeName:   node.Name,
+			NodeStatus: node.Status.String(),
+			NodeOid:    node.Oid.String(),
+		}
+
+		module_nodes = append(module_nodes, new_repo_mod_node)
+	}
+
+	module_types := []OMFRepositoryType{}
+
+	for _, tp := range m.GetTypes() {
+		new_repo_mod_type := OMFRepositoryType{
+			TypeName:   tp.Name,
+			TypeStatus: tp.Status.String(),
+		}
+
+		module_types = append(module_types, new_repo_mod_type)
+	}
+
+	exit_gosmi()
+
+	return omf_repo_module, nil
 }
 
 func GetOmfModuleTree(path string, module_name string) (OMFTree, error) {

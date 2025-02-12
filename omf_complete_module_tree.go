@@ -127,3 +127,27 @@ func CreateCompleteTreeFromModule(path string, module_name string) (OMFCompleteM
 
 	return create_complete_tree_from_module(&m)
 }
+
+func AddModuleInTree(module_name string, tree OMFCompleteModuleTree) (OMFCompleteModuleTree, error) {
+	_, err := gosmi.LoadModule(module_name)
+
+	if err != nil {
+		return OMFCompleteModuleTree{}, nil
+	}
+
+	new_module, err := gosmi.GetModule(module_name)
+
+	if err != nil {
+		return OMFCompleteModuleTree{}, nil
+	}
+
+	for _, new_node := range new_module.GetNodes() {
+		clean_node := get_leaf_by_oid(new_node.Oid, tree.Tree)
+
+		clean_node.Node = omfy_node(&new_node)
+
+		clean_node.NodeOid = new_node.Oid.String()
+	}
+
+	return tree, nil
+}
